@@ -1,0 +1,1060 @@
+---
+title: "Data Analysis Assignment #2 (75 points total)"
+author: "roy, deblina"
+output:
+  html_document: default
+---
+
+```{r setup, include = FALSE}
+# DO NOT ADD OR REVISE CODE HERE
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE)
+
+```
+
+### Instructions
+
+R markdown is a plain-text file format for integrating text and R code, and creating transparent, reproducible and interactive reports. An R markdown file (.Rmd) contains metadata, markdown and R code "chunks", and can be "knit" into numerous output types. Answer the test questions by adding R code to the fenced code areas below each item. There are questions that require a written answer that also need to be answered. Enter your comments in the space provided as shown below:
+
+***Answer: (Enter your answer here.)*** 
+
+Once completed, you will "knit" and submit the resulting .html document and the .Rmd file. The .html will present the output of your R code and your written answers, but your R code will not appear.  Your R code will appear in the .Rmd file. The resulting .html document will be graded and a feedback report returned with comments.  Points assigned to each item appear in the template.
+
+**Before proceeding, look to the top of the .Rmd for the (YAML) metadata block, where the *title*, *author* and *output* are given. Please change *author* to include your name, with the format 'lastName, firstName.'**
+
+If you encounter issues with knitting the .html, please send an email via Canvas to your TA.
+
+Each code chunk is delineated by six (6) backticks; three (3) at the start and three (3) at the end. After the opening ticks, arguments are passed to the code chunk and in curly brackets. **Please do not add or remove backticks, or modify the arguments or values inside the curly brackets**. An example code chunk is included here: 
+
+```{r exampleCodeChunk, eval = FALSE, echo = TRUE}
+# Comments are included in each code chunk, simply as prompts
+
+#...R code placed here
+
+#...R code placed here
+
+```
+
+R code only needs to be added inside the code chunks for each assignment item. However, there are questions that follow many assignment items. Enter your answers in the space provided. An example showing how to use the template and respond to a question follows.
+
+-----
+
+**Example Problem with Solution:**
+
+Use *rbinom()* to generate two random samples of size 10,000 from the binomial distribution. For the first sample, use p = 0.45 and n = 10. For the second sample, use p = 0.55 and n = 10. Convert the sample frequencies to sample proportions and compute the mean number of successes for each sample. Present these statistics.
+
+```{r Example, eval = TRUE, echo = TRUE}
+
+set.seed(123)
+sample.one <- table(rbinom(10000, 10, 0.45)) / 10000
+sample.two <- table(rbinom(10000, 10, 0.55)) / 10000
+
+successes <- seq(0, 10)
+
+round(sum(sample.one*successes), digits = 1) # [1] 4.5
+round(sum(sample.two*successes), digits = 1) # [1] 5.5
+```
+
+**Question: How do the simulated expectations compare to calculated binomial expectations?**
+
+***Answer:  The calculated binomial expectations are 10(0.45) = 4.5 and 10(0.55) = 5.5.  After rounding the simulated results, the same values are obtained.***
+
+-----
+
+Submit both the .Rmd and .html files for grading. You may remove the instructions and example problem above, but do not remove the YAML metadata block or the first, "setup" code chunk.  Address the steps that appear below and answer all the questions. Be sure to address each question with code and comments as needed.  You may use either base R functions or ggplot2 for the visualizations.
+
+-----
+
+##Data Analysis #2
+
+```{r analysis_setup1, message = FALSE, warning = FALSE}
+
+# Perform the following steps to start the assignment.
+ 
+# 1) Load/attach the following packages via library():  flux, ggplot2, gridExtra, moments, rockchalk, car.
+# NOTE:  packages must be installed via install.packages() before they can be loaded.
+
+library(dplyr)
+library(flux)
+library(ggplot2)
+library(gridExtra)
+library(knitr)
+library(rockchalk)
+library(tidyverse)
+
+# 2) Use the "mydata.csv" file from Assignment #1 or use the file posted on the course site.  Reading
+# the files into R will require sep = "" or sep = " " to format data properly.  Use str() to check file
+# structure.
+
+mydata <- read.csv("mydata.csv", sep = ",", stringsAsFactors = TRUE)
+# mydata <- read.csv(file.path("c:...", "mydata.csv"), sep = ",")
+# mydata <- read.csv(file.path("c:/Rabalone/", "mydata.csv"), sep = ",")
+
+str(mydata)
+
+```
+
+### Test Items starts from here - There are 10 sections - total of 75 points ##############
+
+***#### Section 1: (5 points) ####***
+
+(1)(a) Form a histogram and QQ plot using RATIO. Calculate skewness and kurtosis using 'rockchalk.' Be aware that with 'rockchalk', the kurtosis value has 3.0 subtracted from it which differs from the 'moments' package. 
+
+```{r Part_1a, fig.width = 12}
+#  Load the rockchalk package (though it's already installed)
+library(rockchalk)
+
+#  Load your dataset (use your path or already loaded data)
+mydata <- read.csv("mydata.csv") 
+
+#  Create the VOLUME and RATIO variables
+mydata$VOLUME <- mydata$LENGTH * mydata$DIAM * mydata$HEIGHT
+mydata$RATIO <- mydata$SHUCK / mydata$VOLUME
+
+#  Remove invalid values (e.g., divide-by-zero or NA)
+mydata <- mydata[is.finite(mydata$RATIO), ]
+
+#  Create a histogram
+hist(
+  mydata$RATIO,
+  main = "Histogram of RATIO",
+  xlab = "RATIO (SHUCK / VOLUME)",
+  col = "skyblue",
+  border = "darkblue"
+)
+
+# Create a QQ Plot
+qqnorm(mydata$RATIO, main = "QQ Plot of RATIO")
+qqline(mydata$RATIO, col = "red")
+
+# Calculate Skewness and Kurtosis using rockchalk
+skewness_val <- rockchalk::skewness(mydata$RATIO)
+kurtosis_val <- rockchalk::kurtosis(mydata$RATIO)
+
+# Print the results
+cat("Skewness:", skewness_val, "\n")
+cat("Kurtosis (Adjusted):", kurtosis_val, "\n")
+
+```
+
+(1)(b) Tranform RATIO using *log10()* to create L_RATIO (Kabacoff Section 8.5.2, p. 199-200). Form a histogram and QQ plot using L_RATIO. Calculate the skewness and kurtosis. Create a boxplot of L_RATIO differentiated by CLASS.
+
+```{r Part_1b, fig.width = 12, fig.height = 8}
+
+mydata$L_RATIO <- log10(mydata$RATIO)
+
+# Histogram of log-transformed RATIO
+hist(
+  mydata$L_RATIO,
+  main = "Histogram of Log10(RATIO)",
+  xlab = "Log10(RATIO)",
+  col = "lightgreen",
+  border = "darkgreen"
+)
+
+# QQ plot of log-transformed RATIO
+qqnorm(mydata$L_RATIO, main = "QQ Plot of Log10(RATIO)")
+qqline(mydata$L_RATIO, col = "red")
+
+# Calculate skewness and kurtosis of L_RATIO
+library(rockchalk)
+
+log_skew <- skewness(mydata$L_RATIO)
+log_kurt <- kurtosis(mydata$L_RATIO)
+
+cat("Skewness (L_RATIO):", log_skew, "\n")
+cat("Kurtosis (Adjusted, L_RATIO):", log_kurt, "\n")
+
+boxplot(
+  L_RATIO ~ CLASS,
+  data = mydata,
+  main = "Boxplot of Log10(RATIO) by CLASS",
+  xlab = "CLASS",
+  ylab = "Log10(RATIO)",
+  col = "orange"
+)
+
+
+```
+
+(1)(c) Test the homogeneity of variance across classes using *bartlett.test()* (Kabacoff Section 9.2.2, p. 222). 
+
+```{r Part_1c}
+# Perform Bartlett's test for homogeneity of variances
+bartlett.test(L_RATIO ~ CLASS, data = mydata)
+
+```
+
+**Essay Question: Based on steps 1.a, 1.b and 1.c, which variable RATIO or L_RATIO exhibits better conformance to a normal distribution with homogeneous variances across age classes?  Why?** 
+
+***Answer: ( Based on steps 1.a, 1.b, and 1.c, the variable L_RATIO (log-transformed RATIO) exhibits better conformance to a normal distribution with homogeneous variances across age classes due to following reasons : 
+1.a: For RATIO
+
+Histogram: Right-skewed, not symmetric.
+QQ Plot: Data points deviate noticeably from the normal line, especially at the tails.
+Skewness: 0.71 → Indicates moderate positive skew.
+Adjusted Kurtosis: 1.67 → Indicates a heavier tail than a normal distribution.
+
+Therefore, RATIO does not follow a normal distribution and is therefore not ideal for parametric statistical tests.
+
+1.b: But for Transformed Variable – L_RATIO 
+
+Histogram: More symmetric and bell-shaped.
+QQ Plot: Data points align well with the normal line, even in the tails.
+Skewness: -0.094 → Nearly symmetrical.
+Adjusted Kurtosis: 0.535 → Close to that of a normal distribution (which is 0 when adjusted).
+
+Therefore, the log transformation improves the distribution significantly, making L_RATIO approximate a normal distribution.
+
+1.c: For homogeneity of Variance 
+
+Bartlett’s K² = 3.1891, p-value = 0.5267
+Since p > 0.05, we fail to reject the null hypothesis, which means the variances are homogeneous across age classes.
+Boxplots of L_RATIO by CLASS also visually confirm consistent spread and symmetry.
+
+So, L_RATIO is clearly the superior choice for statistical analysis.
+
+)***
+
+
+***#### Section 2 (10 points) ####***
+
+(2)(a) Perform an analysis of variance with *aov()* on L_RATIO using CLASS and SEX as the independent variables (Kabacoff chapter 9, p. 212-229). Assume equal variances. Perform two analyses. First, fit a model with the interaction term CLASS:SEX. Then, fit a model without CLASS:SEX. Use *summary()* to obtain the analysis of variance tables (Kabacoff chapter 9, p. 227).
+
+```{r Part_2a}
+# 1. Model with interaction term: CLASS * SEX
+model_interaction <- aov(L_RATIO ~ CLASS * SEX, data = mydata)
+
+# Display ANOVA table for interaction model
+summary(model_interaction)
+
+# 2. Model without interaction term: CLASS + SEX
+model_additive <- aov(L_RATIO ~ CLASS + SEX, data = mydata)
+
+# Display ANOVA table for additive model
+summary(model_additive)
+
+
+```
+
+**Essay Question:  Compare the two analyses.  What does the non-significant interaction term suggest about the relationship between L_RATIO and the factors CLASS and SEX?**
+
+***Answer: ( The comparison between the two ANOVA models - one with an interaction term (CLASS:SEX) and one without reveals that the interaction between CLASS and SEX is not statistically significant (p = 0.867). This suggests that the effect of CLASS on the log-transformed ratio (L_RATIO) does not depend on the SEX of the abalones, and vice versa. In other words, the relationship between L_RATIO and CLASS is consistent across different SEX categories, indicating no meaningful combined or multiplicative effect. Both CLASS and SEX individually show statistically significant effects on L_RATIO, with CLASS having a very strong influence (p < 2e-16) and SEX also showing a significant but smaller effect (p ~ 0.0013). Since the interaction term does not contribute significantly to explaining the variability in L_RATIO, the simpler model without the interaction is preferable. It is more parsimonious and equally effective in capturing the main effects, allowing for a clearer interpretation of how CLASS and SEX independently influence L_RATIO.
+)***
+
+(2)(b) For the model without CLASS:SEX (i.e. an interaction term), obtain multiple comparisons with the *TukeyHSD()* function. Interpret the results at the 95% confidence level (*TukeyHSD()* will adjust for unequal sample sizes). 
+
+```{r Part_2b}
+# Applying Tukey HSD test on the additive model
+tukey_result <- TukeyHSD(model_additive)
+
+# Display the results
+print(tukey_result)
+
+```
+
+**Additional Essay Question:  first, interpret the trend in coefficients across age classes. What is this indicating about L_RATIO?  Second, do these results suggest male and female abalones can be combined into a single category labeled as 'adults?' If not, why not?**
+
+***Answer: ( The pairwise comparisons among age classes (A1 through A5) show a consistent downward trend in L_RATIO as the age class increases:
+A2 vs A1: Not significantly different.
+A3, A4, A5 vs A1: All significantly lower L_RATIO values with increasing magnitude.
+A5 vs A1: Shows the largest negative difference (-0.09997), highly significant (p < 0.0001).
+Every consecutive class difference (e.g., A3–A2, A4–A3, A5–A4) is statistically significant, with p-values well below 0.05.
+
+This trend suggests that L_RATIO decreases as age increases. In other words, there is a systematic reduction in L_RATIO with advancing maturity, indicating that age class is a strong and significant predictor of L_RATIO. The decline appears to be gradual but consistent across adjacent age groups.
+
+Looking at the SEX comparisons:
+Immature vs Female (I–F): Significant difference in L_RATIO (p = 0.0377), with immature having lower L_RATIO.
+Male vs Female (M–F): No significant difference (p = 0.9413), suggesting L_RATIO values are statistically similar.
+Male vs Immature (M–I): Significant difference (p = 0.0112), with males having higher L_RATIO than immatures.
+
+Since females and males are not significantly different in L_RATIO, it is reasonable to group them together under a common "adult" category from a statistical standpoint.
+However, immature abalones differ significantly from both adults (male and female), especially showing lower L_RATIO values.
+
+)***
+
+
+***####  Section 3: (10 points) ####***
+
+(3)(a1) Here, we will combine "M" and "F" into a new level, "ADULT". The code for doing this is given to you. For (3)(a1), all you need to do is execute the code as given.
+
+```{r Part_3a1}
+# Here, we show how to define the new variable TYPE using only base R functions:
+
+mydata$TYPE <- factor(ifelse(mydata$SEX == "I", "I", "ADULT"))
+table(mydata$TYPE)
+
+
+```
+
+(3)(a2)  Present side-by-side histograms of VOLUME. One should display infant volumes and, the other, adult volumes. 
+
+```{r Part_3a2, fig.width = 12}
+# Set plotting area to side-by-side
+par(mfrow = c(1, 2), oma = c(0, 0, 2, 0))
+
+# Histogram for Infant Volume
+hist(mydata$VOLUME[mydata$TYPE == "I"],
+     main = "Infant Volume", 
+     xlab = "Volume", 
+     col = "skyblue", 
+     border = "white")
+
+# Histogram for Adult Volume
+hist(mydata$VOLUME[mydata$TYPE == "ADULT"],
+     main = "Adult Volume", 
+     xlab = "Volume", 
+     col = "salmon", 
+     border = "white")
+
+# Add overall title
+mtext("Side-by-Side Histograms of VOLUME by TYPE", outer = TRUE, cex = 1.2)
+
+
+
+```
+
+
+**Essay Question: Compare the histograms.  How do the distributions differ? Are there going to be any difficulties separating infants from adults based on VOLUME?**
+
+***Answer: (Comparisons of the histogram based on the distribution shape:
+Infants Volume:
+The distribution is heavily right-skewed.
+Most infant abalones have lower volume values, mainly below 300.
+A steep drop-off occurs as volume increases, with very few infants beyond 400.
+
+Adults Volume:
+The distribution is roughly symmetric, resembling a normal distribution.
+Most adults have moderate volumes centered around 400–600.
+Very few adults have volume less than 200.
+
+There's a clear distinction in the volume ranges:
+Infants: Mostly < 300.
+Adults: Mostly > 300, centered around 400–600.
+However, there is some overlap around the 200-400 range, where both infants and smaller adults exist.
+
+Since the two distributions are mostly separated with different shapes and centers, VOLUME is a useful feature for distinguishing infants from adults.
+In the overlap region (~200–400), distinguishing infants from small adults could be tricky, and VOLUME alone may not be perfectly accurate. A classification model using just VOLUME might make errors in this zone.
+)***
+
+(3)(b) Create a scatterplot of SHUCK versus VOLUME and a scatterplot of their base ten logarithms, labeling the variables as L_SHUCK and L_VOLUME. Please be aware the variables, L_SHUCK and L_VOLUME, present the data as orders of magnitude (i.e. VOLUME = 100 = 10^2 becomes L_VOLUME = 2). Use color to differentiate CLASS in the plots. Repeat using color to differentiate by TYPE. 
+
+```{r Part_3b, fig.width = 12, fig.height = 8}
+
+# Create the log10-transformed variables
+mydata$L_SHUCK <- log10(mydata$SHUCK)
+mydata$L_VOLUME <- log10(mydata$VOLUME)
+
+# Load ggplot2
+library(ggplot2)
+
+# Scatterplot of SHUCK vs VOLUME by CLASS
+ggplot(mydata, aes(x = VOLUME, y = SHUCK, color = CLASS)) +
+  geom_point(alpha = 0.6) +
+  labs(title = "SHUCK vs VOLUME (Colored by CLASS)", x = "Volume", y = "Shuck Weight") +
+  theme_minimal()
+
+# Scatterplot of log10(SHUCK) vs log10(VOLUME) by CLASS
+ggplot(mydata, aes(x = L_VOLUME, y = L_SHUCK, color = CLASS)) +
+  geom_point(alpha = 0.6) +
+  labs(title = "log10(SHUCK) vs log10(VOLUME) (Colored by CLASS)", x = "Log10 Volume", y = "Log10 Shuck Weight") +
+  theme_minimal()
+
+# Scatterplot of SHUCK vs VOLUME by TYPE
+ggplot(mydata, aes(x = VOLUME, y = SHUCK, color = TYPE)) +
+  geom_point(alpha = 0.6) +
+  labs(title = "SHUCK vs VOLUME (Colored by TYPE)", x = "Volume", y = "Shuck Weight") +
+  theme_minimal()
+
+# Scatterplot of log10(SHUCK) vs log10(VOLUME) by TYPE
+ggplot(mydata, aes(x = L_VOLUME, y = L_SHUCK, color = TYPE)) +
+  geom_point(alpha = 0.6) +
+  labs(title = "log10(SHUCK) vs log10(VOLUME) (Colored by TYPE)", x = "Log10 Volume", y = "Log10 Shuck Weight") +
+  theme_minimal()
+
+```
+
+**Additional Essay Question:  Compare the two scatterplots. What effect(s) does log-transformation appear to have on the variability present in the plot?  What are the implications for linear regression analysis? Where do the various CLASS levels appear in the plots? Where do the levels of TYPE appear in the plots?**
+
+***Answer: (The scatterplots illustrate the relationship between SHUCK weight and VOLUME, first on the original scale and then on the log-transformed scale. In the original (untransformed) plots, the data exhibit a non-linear, fan-shaped pattern, where the spread of SHUCK weight increases with larger VOLUME values. This unequal variability can violate assumptions of linear regression and lead to misleading results.
+
+After applying a log10 transformation to both SHUCK and VOLUME, the relationship becomes much more linear, meaning the variability is more constant across the range of values. The data points form a tighter, more uniform band around the linear trend. This transformation also reduces the impact of extreme values (outliers), making the relationship easier to model accurately with linear regression. Overall, the log transformation improves the assumptions of linearity, normality, and equal variance, which are all critical for reliable regression analysis.
+
+In both the original and log-transformed plots colored by CLASS, we can see a clear progression:
+	•	CLASS A1 and A2 (younger age classes) tend to appear in the lower-left region of the plots, corresponding to smaller VOLUME and SHUCK values.
+	•	CLASS A3, A4, and especially A5 (older age classes) appear toward the upper-right, reflecting larger abalones with greater volume and meat (SHUCK weight).
+This suggests that as CLASS increases (abalones get older), both SHUCK and VOLUME increase in a consistent, growth-related pattern.
+
+In the plots colored by TYPE:
+	•	Type “I” (presumably immature) are clustered in the lower-left corner, representing smaller abalones with lower SHUCK and VOLUME.
+	•	Type “ADULT” are spread across a wider range and dominate the upper part of the plots, especially at higher VOLUME and SHUCK values.
+
+This indicates that most large abalones are adults, while immature ones are smaller and more tightly grouped in the size distribution.
+
+
+)***
+
+
+***####   Section 4: (5 points) ####***
+
+(4)(a1) Since abalone growth slows after class A3, infants in classes A4 and A5 are considered mature and candidates for harvest. You are given code in (4)(a1) to reclassify the infants in classes A4 and A5 as ADULTS. 
+
+```{r Part_4a1}
+
+mydata$TYPE[mydata$CLASS == "A4" | mydata$CLASS == "A5"] <- "ADULT"
+table(mydata$TYPE)
+
+```
+
+(4)(a2) Regress L_SHUCK as the dependent variable on L_VOLUME, CLASS and TYPE (Kabacoff Section 8.2.4, p. 178-186, the Data Analysis Video #2 and Black Section 14.2). Use the multiple regression model: L_SHUCK ~ L_VOLUME + CLASS + TYPE. Apply *summary()* to the model object to produce results.
+
+```{r Part_4a2}
+
+# Fit the multiple regression model
+model <- lm(L_SHUCK ~ L_VOLUME + CLASS + TYPE, data = mydata)
+
+# View the summary of the model
+summary(model)
+
+```
+
+**Essay Question:  Interpret the trend in CLASS levelcoefficient estimates? (Hint:  this question is not asking if the estimates are statistically significant. It is asking for an interpretation of the pattern in these coefficients, and how this pattern relates to the earlier displays).**
+
+***Answer: (
+The coefficient estimates for CLASS are:
+CLASS A2: –0.018
+CLASS A3: –0.047
+CLASS A4: –0.076
+CLASS A5: –0.117
+
+This shows a clear, decreasing trend in the coefficients as CLASS increases from A2 to A5. In practical terms, this means that for a given volume (size), the meat weight (shuck weight) tends to decrease as the abalone matures through higher CLASS levels.
+
+This pattern aligns with biological observations that abalone growth, particularly in terms of meat accumulation, slows after CLASS A3. As a result, CLASS A4 and A5, though physically larger, tend to accumulate less meat per unit of volume and are therefore considered mature and suitable for harvest.
+
+The negative and increasingly large coefficients reflect this slowing growth, indicating that meat yield becomes progressively less efficient with increasing CLASS, even when the overall size (VOLUME) is the same.
+
+)***
+
+**Additional Essay Question:  Is TYPE an important predictor in this regression? (Hint:  This question is not asking if TYPE is statistically significant, but rather how it compares to the other independent variables in terms of its contribution to predictions of L_SHUCK for harvesting decisions.)  Explain your conclusion.**
+
+***Answer: (Although the variable TYPE is statistically significant (p = 0.0062), the magnitude of its coefficient (–0.021) is relatively small compared to other predictors—particularly L_VOLUME and the CLASS levels (e.g., CLASS A5 has a coefficient of –0.117).
+
+This suggests that TYPE does contribute to predicting L_SHUCK, but its practical impact is limited. In terms of harvesting decisions, the volume (L_VOLUME) and growth class (CLASS) provide much stronger and more meaningful signals about the expected meat yield (log shuck weight) than TYPE does.
+
+In other words, while TYPE does affect L_SHUCK to a small extent, it is not a primary driver of harvesting decisions when compared to the much larger and clearer effects of VOLUME and CLASS. Therefore, TYPE is less important than the other variables for making harvesting decisions based on meat yield.
+
+)***
+
+-----
+
+The next two analysis steps involve an analysis of the residuals resulting from the regression model in (4)(a) (Kabacoff Section 8.2.4, p. 178-186, the Data Analysis Video #2).
+
+-----
+
+***#### Section 5: (5 points) ####***
+
+(5)(a) If "model" is the regression object, use model$residuals and construct a histogram and QQ plot. Compute the skewness and kurtosis. Be aware that with 'rockchalk,' the kurtosis value has 3.0 subtracted from it which differs from the 'moments' package. 
+
+```{r Part_5am, fig.width = 12}
+
+# Histogram of residuals
+hist(model$residuals, main = "Histogram of Residuals", xlab = "Residuals", col = "skyblue", border = "white")
+
+# QQ Plot of residuals
+qqnorm(model$residuals)
+qqline(model$residuals, col = "red", lwd = 2)
+
+# loaded the package 
+library(moments)
+
+# Compute skewness and kurtosis
+skew <- skewness(model$residuals)        # Measures asymmetry
+kurt <- kurtosis(model$residuals)        # Normal kurtosis ≈ 3.0
+
+# Display results
+cat("Skewness:", round(skew, 4), "\n")
+cat("Kurtosis:", round(kurt, 4), "\n")
+
+
+```
+
+(5)(b) Plot the residuals versus L_VOLUME, coloring the data points by CLASS and, a second time, coloring the data points by TYPE. Keep in mind the y-axis and x-axis may be disproportionate which will amplify the variability in the residuals. Present boxplots of the residuals differentiated by CLASS and TYPE (These four plots can be conveniently presented on one page using *par(mfrow..)* or *grid.arrange()*. Test the homogeneity of variance of the residuals across classes using *bartlett.test()* (Kabacoff Section 9.3.2, p. 222).  
+
+```{r Part_5b, fig.width = 12, fig.height = 8}
+# Ensure ggplot2 and gridExtra are loaded
+library(ggplot2)
+library(gridExtra)
+
+# Add residuals to the data
+mydata$residuals <- model$residuals
+
+# Plot 1: Residuals vs L_VOLUME colored by CLASS
+p1 <- ggplot(mydata, aes(x = L_VOLUME, y = residuals, color = CLASS)) +
+  geom_point(alpha = 0.6) +
+  labs(title = "Residuals vs L_VOLUME (by CLASS)", x = "Log10 Volume", y = "Residuals") +
+  theme_minimal()
+
+# Plot 2: Residuals vs L_VOLUME colored by TYPE
+p2 <- ggplot(mydata, aes(x = L_VOLUME, y = residuals, color = TYPE)) +
+  geom_point(alpha = 0.6) +
+  labs(title = "Residuals vs L_VOLUME (by TYPE)", x = "Log10 Volume", y = "Residuals") +
+  theme_minimal()
+
+# Plot 3: Boxplot of residuals by CLASS
+p3 <- ggplot(mydata, aes(x = CLASS, y = residuals, fill = CLASS)) +
+  geom_boxplot() +
+  labs(title = "Residuals by CLASS", x = "CLASS", y = "Residuals") +
+  theme_minimal()
+
+# Plot 4: Boxplot of residuals by TYPE
+p4 <- ggplot(mydata, aes(x = TYPE, y = residuals, fill = TYPE)) +
+  geom_boxplot() +
+  labs(title = "Residuals by TYPE", x = "TYPE", y = "Residuals") +
+  theme_minimal()
+
+# Arrange all four plots on one page
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+
+# Bartlett test of homogeneity of variance of residuals across CLASS
+bartlett.test(residuals ~ CLASS, data = mydata)
+
+```
+
+**Essay Question:  What is revealed by the displays and calculations in (5)(a) and (5)(b)? Does the model 'fit'?  Does this analysis indicate that L_VOLUME, and ultimately VOLUME, might be useful for harvesting decisions? Discuss.**  
+
+***Answer: (The model appears to fit the data well. The residuals are approximately normally distributed, as seen in the histogram and Q-Q plot. The skewness (-0.06) is close to zero, and the kurtosis (3.35) is near the expected value of 3 for a normal distribution. These values suggest that the residuals are symmetric and follow a normal shape, which is an important assumption for regression models to produce reliable estimates.
+
+Residuals are also consistently spread across different groups of CLASS and TYPE, as shown in the boxplots. To confirm this, Bartlett’s test was used to check for homogeneity of variances. The p-value from the test is 0.4498, which is much greater than 0.05. This means we fail to reject the null hypothesis of equal variances, indicating that the model’s prediction errors are stable across all groups. This stability is important because it means the model performs fairly and consistently, regardless of the class or type of abalone.
+
+Because the model satisfies both the normality and equal variance assumptions, we can trust its predictions. Since VOLUME was a key predictor in this model, and the model fits well, this implies that VOLUME is a useful variable for predicting SHUCKED WEIGHT. In practical terms, this means VOLUME can help in harvesting decisions, such as selecting abalones that are likely to yield more meat.
+
+)***
+
+-----
+
+Harvest Strategy:
+
+There is a tradeoff faced in managing abalone harvest. The infant population must be protected since it represents future harvests. On the other hand, the harvest should be designed to be efficient with a yield to justify the effort. This assignment will use VOLUME to form binary decision rules to guide harvesting. If VOLUME is below a "cutoff" (i.e. a specified volume), that individual will not be harvested. If above, it will be harvested. Different rules are possible.The Management needs to make a decision to implement 1 rule that meets the business goal.
+
+The next steps in the assignment will require consideration of the proportions of infants and adults harvested at different cutoffs. For this, similar "for-loops" will be used to compute the harvest proportions. These loops must use the same values for the constants min.v and delta and use the same statement "for(k in 1:10000)."  Otherwise, the resulting infant and adult proportions cannot be directly compared and plotted as requested. Note the example code supplied below.
+
+-----
+
+***#### Section 6: (5 points) ####***
+
+(6)(a) A series of volumes covering the range from minimum to maximum abalone volume will be used in a "for loop" to determine how the harvest proportions change as the "cutoff" changes. Code for doing this is provided.
+
+```{r Part_6a}
+
+idxi <- mydata$TYPE == "I"
+idxa <- mydata$TYPE == "ADULT"
+
+max.v <- max(mydata$VOLUME)
+min.v <- min(mydata$VOLUME)
+delta <- (max.v - min.v)/10000
+prop.infants <- numeric(10000)
+prop.adults <- numeric(10000)
+volume.value <- numeric(10000)
+
+total.infants <- sum(idxi)  
+total.adults <- sum(idxa)
+
+for (k in 1:10000) { 
+	value <- min.v + k*delta
+	volume.value[k] <- value
+	prop.infants[k] <- sum(mydata$VOLUME[idxi] <= value)/total.infants
+	prop.adults[k] <-  sum(mydata$VOLUME[idxa] <= value)/total.adults
+}
+
+```
+
+(6)(b) Our first "rule" will be protection of all infants. We want to find a volume cutoff that protects all infants, but gives us the largest possible harvest of adults. We can achieve this by using the volume of the largest infant as our cutoff. You are given code below to identify the largest infant VOLUME and to return the proportion of adults harvested by using this cutoff. You will need to modify this latter code to return the proportion of infants harvested using this cutoff. Remember that we will harvest any individual with VOLUME greater than our cutoff.
+
+```{r Part_6b}
+# Largest infant volume
+(max_inf_vol <- max(mydata$VOLUME[mydata$TYPE == "I"]))  # [1] 526.6383
+
+# Proportion of adults harvested
+sum(mydata$VOLUME[mydata$TYPE == "ADULT"] > max_inf_vol) /
+  total.adults  # [1] 0.2476573
+
+# Add code to calculate the proportion of infants harvested
+sum(mydata$VOLUME[mydata$TYPE == "I"] > max_inf_vol) / total.infants
+# [1] 0 
+
+# If we use the largest infant volume, we harvest approximately 24.8% of adults and 0%,
+# as expected, of infants.
+
+```
+
+(6)(c) Our next approaches will look at what happens when we use the median infant and adult harvest VOLUMEs. Using the median VOLUMEs as our cutoffs will give us (roughly) 50% harvests. We need to identify the median volumes and calculate the resulting infant and adult harvest proportions for both.
+
+```{r Part_6c}
+# Add code to determine the median infant volume:
+median_inf_vol <- median(mydata$VOLUME[mydata$TYPE == "I"])
+
+# Add code to calculate the proportion of infants harvested
+prop_infant_harvest_medianinf <- sum(mydata$VOLUME[mydata$VOLUME[mydata$TYPE == "I"] > median_inf_vol])/total.infants
+
+# Add code to calculate the proportion of adults harvested
+prop_adult_harvest_medianinf <- sum(mydata$VOLUME[mydata$VOLUME[mydata$TYPE == "I"] > median_inf_vol])/total.adults
+
+# If we use the median infant volume as our cutoff, we harvest almost 50% of our infants
+# and a little more than 93% of our adults.
+
+# Add code to determine the median adult volume:
+(median_adult_vol <- median(mydata$VOLUME[mydata$TYPE == "ADULT"]))  # e.g., ~673.73
+
+# Add code to calculate the proportion of infants harvested
+prop_infants_harvested_adultcut <- sum(mydata$VOLUME[mydata$TYPE == "I"] > median_adult_vol) / total.infants
+
+# Add code to calculate the proportion of adults harvested
+prop_adults_harvested_adultcut <- sum(mydata$VOLUME[mydata$TYPE == "ADULT"] > median_adult_vol) / total.adults
+
+# If we use the median adult volume as our cutoff, we harvest almost 50% of adults
+# and approximately 2.4% of infants.
+
+```
+
+(6)(d) Next, we will create a plot showing the infant conserved proportions (i.e. "not harvested," the prop.infants vector) and the adult conserved proportions (i.e. prop.adults) as functions of volume.value. We will add vertical A-B lines and text annotations for the three (3) "rules" considered, thus far:  "protect all infants," "median infant" and "median adult." Your plot will have two (2) curves - one (1) representing infant and one (1) representing adult proportions as functions of volume.value - and three (3) A-B lines representing the cutoffs determined in (6)(b) and (6)(c).
+
+```{r Part_6d, fig.width = 12, fig.height = 6}
+
+# Define cutoff volumes
+max_inf_vol <- max(mydata$VOLUME[mydata$TYPE == "I"])             # Protect all infants
+median_inf_vol <- median(mydata$VOLUME[mydata$TYPE == "I"])       # Median infant volume
+median_adult_vol <- median(mydata$VOLUME[mydata$TYPE == "ADULT"]) # Median adult volume
+
+# Plot harvested proportions vs. volume value
+plot(volume.value, 1 - prop.infants, type = "l", col = "red", lwd = 2,
+     ylim = c(0, 1), xlab = "Volume Cutoff", ylab = "Proportion Harvested",
+     main = "Harvest Proportion vs Volume Cutoff")
+
+# Add adult harvested proportion curve
+lines(volume.value, 1 - prop.adults, col = "blue", lwd = 2)
+
+# Add vertical lines for the three cutoff rules
+abline(v = max_inf_vol, col = "darkgreen", lty = 2, lwd = 2)        # Rule 1: Protect all infants
+abline(v = median_inf_vol, col = "purple", lty = 2, lwd = 2)        # Rule 2: Median infant
+abline(v = median_adult_vol, col = "orange", lty = 2, lwd = 2)      # Rule 3: Median adult
+
+# Add legend
+legend("bottomright", legend = c("Infants Harvested", "Adults Harvested",
+                                 "Cutoff: Max Infant", 
+                                 "Cutoff: Median Infant", 
+                                 "Cutoff: Median Adult"),
+       col = c("red", "blue", "darkgreen", "purple", "orange"),
+       lty = c(1, 1, 2, 2, 2), lwd = 2, cex = 0.8)
+
+# Add text annotations for the cutoffs
+text(max_inf_vol, 0.95, labels = "Max Infant Volume", col = "darkgreen", pos = 4, cex = 0.7)
+text(median_inf_vol, 0.85, labels = "Median Infant Volume", col = "purple", pos = 4, cex = 0.7)
+text(median_adult_vol, 0.75, labels = "Median Adult Volume", col = "orange", pos = 4, cex = 0.7)
+
+
+```
+
+**Essay Question:  The two 50% "median" values serve a descriptive purpose illustrating the difference between the populations. What do these values suggest regarding possible cutoffs for harvesting?** 
+
+***Answer: (The two 50% “median” values highlight the difference in volume distributions between infants and adults. The median infant volume is much lower than the median adult volume, indicating that, in general, adults tend to have larger volumes than infants.
+
+This separation suggests that there is a range of possible cutoff values between the two medians where:
+	-	A large portion of adults can still be harvested, and
+	-	A majority of infants can be protected.
+
+Therefore, the medians demonstrate that it is feasible to set a volume cutoff that achieves a balance between biological conservation and economic yield. Cutoffs between the two medians could serve as practical options for harvest strategies that are both efficient and sustainable.
+)***
+
+-----
+
+
+More harvest strategies:
+
+This part will address the determination of a cutoff volume.value corresponding to the observed maximum difference in harvest percentages of adults and infants. In other words, we want to find the volume value such that the vertical distance between the infant curve and the adult curve is maximum. To calculate this result, the vectors of proportions from item (6) must be used. These proportions must be converted from "not harvested" to "harvested" proportions by using (1 - prop.infants) for infants, and (1 - prop.adults) for adults. The reason the proportion for infants drops sooner than adults is that infants are maturing and becoming adults with larger volumes.
+
+Note on ROC:
+
+There are multiple packages that have been developed to create ROC curves. However, these packages - and the functions they define - expect to see predicted and observed classification vectors. Then, from those predictions, those functions calculate the true positive rates (TPR) and false positive rates (FPR) and other classification performance metrics. Worthwhile and you will certainly encounter them if you work in R on classification problems.
+However, in this case, we already have vectors with the TPRs and FPRs. Our adult harvest proportion vector, (1 - prop.adults), is our TPR. This is the proportion, at each possible 'rule,' at each hypothetical harvest threshold (i.e. element of volume.value), of individuals we will correctly identify as adults and harvest. Our FPR is the infant harvest proportion vector, (1 - prop.infants). We can think of TPR as the Confidence level (ie 1 - Probability of Type I error and FPR as the Probability of Type II error. At each possible harvest threshold, what is the proportion of infants we will mistakenly harvest?
+Our ROC curve, then, is created by plotting (1 - prop.adults) as a function of (1 - prop.infants). In short, how much more 'right' we can be (moving upward on the y-axis), if we're willing to be increasingly wrong; i.e. harvest some proportion of infants (moving right on the x-axis)?
+
+
+-----
+
+***#### Section 7: (10 points)  ####***
+
+(7)(a) Evaluate a plot of the difference ((1 - prop.adults) - (1 - prop.infants)) versus volume.value. Compare to the 50% "split" points determined in (6)(a). There is considerable variability present in the peak area of this plot. The observed "peak" difference may not be the best representation of the data. One solution is to smooth the data to determine a more representative estimate of the maximum difference.
+
+```{r Part_7a}
+# Compute conserved proportions
+conserved.infants <- 1 - prop.infants
+conserved.adults <- 1 - prop.adults
+
+# Compute difference (adults - infants)
+diff.conserved <- conserved.adults - conserved.infants
+
+# Plot the raw difference
+plot(volume.value, diff.conserved, type = "l", col = "darkblue", lwd = 2,
+     xlab = "Volume Cutoff", ylab = "Difference in Conserved Proportions",
+     main = "Difference in Conservation (Adults - Infants) vs. Volume Cutoff")
+
+# Smooth the difference using a moving average
+# Load stats package (filter function is from there)
+library(stats)
+smooth.diff <- stats::filter(diff.conserved, rep(1/100, 100), sides = 2)
+
+# Add the smoothed curve to the plot
+lines(volume.value, smooth.diff, col = "red", lwd = 2)
+legend("bottomleft", legend = c("Raw Difference", "Smoothed Difference"),
+       col = c("darkblue", "red"), lty = 1, lwd = 2, cex = 0.8)
+
+# Identify volume at max smoothed difference
+max_index <- which.max(smooth.diff)
+best_cutoff <- volume.value[max_index]
+
+# Add vertical line at best cutoff
+abline(v = best_cutoff, col = "forestgreen", lty = 2, lwd = 2)
+text(best_cutoff, 0.05, labels = paste("Best Cutoff\nVol =", round(best_cutoff, 2)),
+     col = "forestgreen", pos = 4, cex = 0.75)
+```
+
+(7)(b) Since curve smoothing is not studied in this course, code is supplied below. Execute the following code to create a smoothed curve to append to the plot in (a). The procedure is to individually smooth (1-prop.adults) and (1-prop.infants) before determining an estimate of the maximum difference. 
+
+```{r Part_7b}
+
+y.loess.a <- loess(1 - prop.adults ~ volume.value, span = 0.25,
+	family = c("symmetric"))
+y.loess.i <- loess(1 - prop.infants ~ volume.value, span = 0.25,
+	family = c("symmetric"))
+smooth.difference <- predict(y.loess.a) - predict(y.loess.i)
+
+```
+
+(7)(c) Present a plot of the difference ((1 - prop.adults) - (1 - prop.infants)) versus volume.value with the variable smooth.difference superimposed. Determine the volume.value corresponding to the maximum smoothed difference (Hint:  use *which.max()*). Show the estimated peak location corresponding to the cutoff determined.
+
+Include, side-by-side, the plot from (6)(d) but with a fourth vertical A-B line added. That line should intercept the x-axis at the "max difference" volume determined from the smoothed curve here.
+
+```{r Part_7c, fig.width = 12, fig.height = 6}
+
+# Recompute conserved proportions though already done
+conserved.infants <- 1 - prop.infants
+conserved.adults <- 1 - prop.adults
+diff.conserved <- conserved.adults - conserved.infants
+
+# Smooth each curve individually using loess
+y.loess.a <- loess(conserved.adults ~ volume.value, span = 0.25, family = "symmetric")
+y.loess.i <- loess(conserved.infants ~ volume.value, span = 0.25, family = "symmetric")
+
+# Predict smoothed values and compute smoothed difference
+smooth.difference <- predict(y.loess.a) - predict(y.loess.i)
+
+# Find volume at which smoothed difference is maximum
+max_index <- which.max(smooth.difference)
+max_diff_volume <- volume.value[max_index]
+
+# Set up side-by-side plotting layout
+par(mfrow = c(1, 2))  # 1 row, 2 columns
+
+# Raw and Smoothed Difference Plot
+plot(volume.value, diff.conserved, type = "l", col = "darkblue", lwd = 2,
+     xlab = "Volume Cutoff", ylab = "Difference (Adults - Infants) Conserved",
+     main = "Raw vs Smoothed Difference")
+
+lines(volume.value, smooth.difference, col = "red", lwd = 2)
+abline(v = max_diff_volume, col = "forestgreen", lty = 2, lwd = 2)
+text(max_diff_volume, 0.05, paste("Max Diff\nVol =", round(max_diff_volume, 2)),
+     col = "forestgreen", pos = 4, cex = 0.75)
+legend("topright", legend = c("Raw Difference", "Smoothed Difference", "Max Diff Volume"),
+       col = c("darkblue", "red", "forestgreen"), lty = c(1, 1, 2), lwd = 2, cex = 0.7)
+
+# Harvest Proportion Plot from 6(d) with 4 Cutoffs
+plot(volume.value, 1 - prop.infants, type = "l", col = "red", lwd = 2,
+     ylim = c(0, 1), xlab = "Volume Cutoff", ylab = "Proportion Harvested",
+     main = "Harvest Proportion with 4 Rules")
+
+lines(volume.value, 1 - prop.adults, col = "blue", lwd = 2)
+
+# Add 4 vertical lines
+abline(v = max_inf_vol, col = "darkgreen", lty = 2, lwd = 2)
+abline(v = median_inf_vol, col = "purple", lty = 2, lwd = 2)
+abline(v = median_adult_vol, col = "orange", lty = 2, lwd = 2)
+abline(v = max_diff_volume, col = "forestgreen", lty = 2, lwd = 2)
+
+# Add labels
+legend("bottomright", legend = c("Infants Harvested", "Adults Harvested",
+                                 "Max Infant", "Median Infant", "Median Adult",
+                                 "Max Diff Cutoff"),
+       col = c("red", "blue", "darkgreen", "purple", "orange", "forestgreen"),
+       lty = c(1, 1, 2, 2, 2, 2), lwd = 2, cex = 0.75)
+```
+
+(7)(d) What separate harvest proportions for infants and adults would result if this cutoff is used? Show the separate harvest proportions. We will actually calculate these proportions in two ways:  first, by 'indexing' and returning the appropriate element of the (1 - prop.adults) and (1 - prop.infants) vectors, and second, by simply counting the number of adults and infants with VOLUME greater than the vlume threshold of interest.
+
+Code for calculating the adult harvest proportion using both approaches is provided.
+
+```{r Part_7d}
+
+(1 - prop.adults)[which.max(smooth.difference)]  # [1] 0.7416332
+# OR,
+sum(mydata[mydata$TYPE == "ADULT", "VOLUME"] >
+      volume.value[which.max(smooth.difference)]) / total.adults # [1] 0.7416332
+
+```
+
+-----
+
+There are alternative ways to determine cutoffs. Two such cutoffs are described below.
+
+-----
+
+***####  Section 8: (10 points)  ####***
+
+(8)(a) Harvesting of infants in CLASS "A1" must be minimized. The smallest volume.value cutoff that produces a zero harvest of infants from CLASS "A1" may be used as a baseline for comparison with larger cutoffs. Any smaller cutoff would result in harvesting infants from CLASS "A1."  
+
+Compute this cutoff, and the proportions of infants and adults with VOLUME exceeding this cutoff. Code for determining this cutoff is provided. Show these proportions. You may use either the 'indexing' or 'count' approach, or both.
+
+```{r Part_8a}
+
+# max volume of an A1 infants
+max_A1_infant_volume <- max(mydata[mydata$CLASS == "A1" & mydata$TYPE == "I", "VOLUME"])
+
+# given code (cleaned)
+cutoff_A1_safe <- volume.value[volume.value > max_A1_infant_volume][1]  # [1] 206.786
+
+# Count-based approach
+prop_infants_harvested_count <- sum(mydata$VOLUME[mydata$TYPE == "I"] > cutoff_A1_safe) / total.infants
+prop_adults_harvested_count <- sum(mydata$VOLUME[mydata$TYPE == "ADULT"] > cutoff_A1_safe) / total.adults
+
+# Indexing-based approach (same result)
+idx_infants <- mydata$TYPE == "I"
+idx_adults <- mydata$TYPE == "ADULT"
+
+prop_infants_harvested_index <- sum(mydata$VOLUME[idx_infants] > cutoff_A1_safe) / sum(idx_infants)
+prop_adults_harvested_index <- sum(mydata$VOLUME[idx_adults] > cutoff_A1_safe) / sum(idx_adults)
+
+# Step 4: Print results
+cat("Cutoff to protect all CLASS A1 infants:", round(cutoff_A1_safe, 3), "\n")
+cat("Infants harvested (count approach):", round(prop_infants_harvested_count, 4), "\n")
+cat("Adults harvested (count approach):", round(prop_adults_harvested_count, 4), "\n")
+cat("Infants harvested (index approach):", round(prop_infants_harvested_index, 4), "\n")
+cat("Adults harvested (index approach):", round(prop_adults_harvested_index, 4), "\n")
+
+```
+
+(8)(b) Next, append one (1) more vertical A-B line to our (6)(d) graph. This time, showing the "zero A1 infants" cutoff from (8)(a). This graph should now have five (5) A-B lines:  "protect all infants," "median infant," "median adult," "max difference" and "zero A1 infants."
+
+```{r Part_8b, fig.width = 12}
+# Plot the harvest proportions of infants
+plot(volume.value, 1 - prop.infants, type = "l", col = "red", lwd = 2,
+     ylim = c(0, 1),
+     xlab = "Volume Cutoff", ylab = "Proportion Harvested",
+     main = "Harvest Proportion with 5 Rules")
+
+# Add the harvest proportions of adults
+lines(volume.value, 1 - prop.adults, col = "blue", lwd = 2)
+
+# Add 5 vertical A-B lines
+abline(v = max_inf_vol, col = "darkgreen", lty = 2, lwd = 2)        # Rule 1: Max Infant
+abline(v = median_inf_vol, col = "purple", lty = 2, lwd = 2)        # Rule 2: Median Infant
+abline(v = median_adult_vol, col = "orange", lty = 2, lwd = 2)      # Rule 3: Median Adult
+abline(v = max_diff_volume, col = "forestgreen", lty = 2, lwd = 2)  # Rule 4: Max Diff
+abline(v = cutoff_A1_safe, col = "brown", lty = 2, lwd = 2)         # ✅ Rule 5: Zero A1 Infants
+
+# Add a legend to explain the colors
+legend("bottomright", legend = c("Infants Harvested", "Adults Harvested",
+                                 "Protect All Infants", 
+                                 "Median Infant", "Median Adult",
+                                 "Max Diff Cutoff", "Zero A1 Infants"),
+       col = c("red", "blue", "darkgreen", "purple", "orange", "forestgreen", "brown"),
+       lty = c(1, 1, 2, 2, 2, 2, 2), lwd = 2, cex = 0.75)
+
+# Optional text labels for lines
+text(max_inf_vol, 0.95, "Protect All", col = "darkgreen", pos = 4, cex = 0.7)
+text(median_inf_vol, 0.85, "Median Infant", col = "purple", pos = 4, cex = 0.7)
+text(median_adult_vol, 0.75, "Median Adult", col = "orange", pos = 4, cex = 0.7)
+text(max_diff_volume, 0.65, "Max Diff", col = "forestgreen", pos = 4, cex = 0.7)
+text(cutoff_A1_safe, 0.55, "Zero A1", col = "brown", pos = 4, cex = 0.7)
+
+```
+
+
+***#### Section 9: (5 points) ####***
+
+(9)(a) Construct an ROC curve by plotting (1 - prop.adults) versus (1 - prop.infants). Each point which appears corresponds to a particular volume.value. Show the location of the cutoffs determined in (6), (7) and (8) on this plot and label each. 
+
+```{r Part_9, fig.width = 8.5}
+# Part 9a: ROC Curve
+plot(1 - prop.infants, 1 - prop.adults, type = "l", lwd = 2,
+     xlab = "1 - Proportion of Infants Harvested (Specificity)",
+     ylab = "1 - Proportion of Adults Harvested (False Negative Rate)",
+     main = "ROC Curve: Harvesting Decisions")
+
+# Mark all five cutoffs
+cutoffs <- c(max_inf_vol, median_inf_vol, median_adult_vol, max_diff_volume, cutoff_A1_safe)
+labels <- c("Protect All Infants", "Median Infant", "Median Adult", "Max Diff", "Zero A1 Infants")
+colors <- c("darkgreen", "purple", "orange", "forestgreen", "brown")
+
+for (i in 1:5) {
+  idx <- which.min(abs(volume.value - cutoffs[i]))
+  x_pt <- (1 - prop.infants)[idx]
+  y_pt <- (1 - prop.adults)[idx]
+  points(x_pt, y_pt, col = colors[i], pch = 19, cex = 1.2)
+  text(x_pt, y_pt, labels[i], pos = 4, col = colors[i], cex = 0.75)
+}
+
+
+```
+
+(9)(b) Numerically integrate the area under the ROC curve and report your result. This is most easily done with the *auc()* function from the "flux" package.   Areas-under-curve, or AUCs, greater than 0.8 are taken to indicate good discrimination potential. 
+
+```{r Part_9b}
+
+library(flux)
+
+fpr <- 1 - prop.infants
+tpr <- 1 - prop.adults
+
+sorted_idx <- order(fpr)
+fpr_sorted <- fpr[sorted_idx]
+tpr_sorted <- tpr[sorted_idx]
+
+auc_value <- auc(fpr_sorted, tpr_sorted)
+cat("Area Under ROC Curve (AUC):", round(auc_value, 4), "\n")
+
+```
+
+
+***#### Section 10: (10 points) ####***
+
+(10)(a) Prepare a table showing each cutoff along with the following:
+ 	1) true positive rate (1-prop.adults,
+ 	2) false positive rate (1-prop.infants),
+ 	3) harvest proportion of the total population
+
+To calculate the total harvest proportions, you can use the 'count' approach, but ignoring TYPE; simply count the number of individuals (i.e. rows) with VOLUME greater than a given threshold and divide by the total number of individuals in our dataset.
+ 	
+```{r Part_10} 	
+
+# Create a named vector of cutoffs
+cutoffs <- c("Protect All Infants" = max_inf_vol,
+             "Median Infant" = median_inf_vol,
+             "Median Adult" = median_adult_vol,
+             "Max Difference" = max_diff_volume,
+             "Zero A1 Infants" = cutoff_A1_safe)
+
+# Initialize vectors to store results
+TPR <- numeric(length(cutoffs))
+FPR <- numeric(length(cutoffs))
+TotalHarvest <- numeric(length(cutoffs))
+
+# Total number of adults, infants, and total abalones
+total_adults <- sum(mydata$TYPE == "ADULT")
+total_infants <- sum(mydata$TYPE == "I")
+total_all <- nrow(mydata)
+
+# Loop through each cutoff
+for (i in seq_along(cutoffs)) {
+  cutoff <- cutoffs[i]
+  
+  # TPR = proportion of adults harvested
+  TPR[i] <- sum(mydata$VOLUME[mydata$TYPE == "ADULT"] > cutoff) / total_adults
+  
+  # FPR = proportion of infants harvested
+  FPR[i] <- sum(mydata$VOLUME[mydata$TYPE == "I"] > cutoff) / total_infants
+  
+  # Total harvest proportion
+  TotalHarvest[i] <- sum(mydata$VOLUME > cutoff) / total_all
+}
+
+# Create summary table
+summary_table <- data.frame(
+  Strategy = names(cutoffs),
+  Cutoff = round(cutoffs, 2),
+  True_Positive_Rate = round(TPR, 4),
+  False_Positive_Rate = round(FPR, 4),
+  Total_Harvest_Proportion = round(TotalHarvest, 4)
+)
+
+# Show the table
+print(summary_table)
+
+
+```
+ 	
+**Essay Question: Based on the ROC curve, it is evident a wide range of possible "cutoffs" exist. Compare and discuss the five cutoffs determined in this assignment.**   
+
+***Answer: (The ROC curve illustrates the trade-off between adult yield and infant conservation across various volume-based cutoff strategies. Each point on the curve represents a potential rule, balancing the True Positive Rate (TPR) – adults correctly harvested – against the False Positive Rate (FPR) – infants mistakenly harvested.
+
+The five cutoffs analyzed in this assignment represent key decision strategies with distinct implications:
+	1.	Protect All Infants
+	  TPR ≈ 0.25, FPR = 0.00
+	  This is the most conservative strategy, ensuring zero infant harvest. However, it sacrifices yield by only harvesting about 25% of adults. It is optimal for strict biological conservation but not efficient from a yield perspective.
+	2.	Median Adult Volume
+	  TPR ≈ 0.50, FPR ≈ 0.024
+	  This cutoff captures half of the adult population while mistakenly harvesting only about 2.4% of infants. It offers a balanced approach, allowing reasonable yield while largely preserving infants.
+	3.	Max Difference
+	   TPR ≈ 0.74, FPR ≈ 0.26
+	   This point corresponds to the maximum vertical gap between the TPR and FPR curves, indicating the most efficient tradeoff between yield and conservation. It is arguably the best overall strategy, balancing adult harvest with moderate infant   loss.
+	4.	Zero A1 Infants
+	   TPR ≈ 0.87, FPR ≈ 0.44
+	   This strategy ensures complete protection of A1-class infants, who may be biologically or commercially significant. While some other infants are harvested, it maintains a very high adult yield and prioritizes protecting the most vulnerable subgroup.
+	5.	Median Infant Volume
+	   TPR ≈ 0.93, FPR ≈ 0.50
+	   This cutoff harvests nearly all adults, but at the cost of harvesting 50% of infants. Although economically efficient, it poses a serious risk to future sustainability, making it biologically inadvisable.
+
+Conclusion
+
+The ROC curve reveals that a wide spectrum of strategies exists. For maximum long-term sustainability, the “Protect All Infants” rule is safest. However, “Max Difference” emerges as the most effective compromise, providing strong yield while still protecting a significant portion of the infant population. If further protection of specific vulnerable groups (e.g., CLASS A1) is a priority, the “Zero A1 Infants” rule is a practical alternative with high efficiency and targeted conservation.
+
+)***
+
+
+
+**Final Essay Question:  Assume you are expected to make a presentation of your analysis to the investigators How would you do so?  Consider the following in your answer:**
+
+1. Would you make a specific recommendation or outline various choices and tradeoffs?
+2. What qualifications or limitations would you present regarding your analysis?
+3. If it is necessary to proceed based on the current analysis, what suggestions would you have for  implementation of a cutoff?  
+4. What suggestions would you have for planning future abalone studies of this type? 
+
+***Answer: (If I were expected to present this analysis to the investigators, I would approach it in a structured and strategic manner, focusing on both the data-driven insights and the practical implications of the findings.
+
+1. Recommendation vs. Choices and Tradeoffs
+
+Rather than prescribing a single recommendation outright, I would outline the five volume-based cutoff strategies analyzed and present their associated tradeoffs using the ROC curve. This visual comparison highlights:
+	•	Strategies like “Protect All Infants”, which offer maximum biological protection but lower yield.
+	•	Strategies like “Max Difference”, which balance economic efficiency with conservation.
+	•	Riskier strategies like “Median Infant”, which yield high returns but compromise sustainability.
+
+This way, the decision-makers can align the strategy with their management objectives, whether conservation-focused, yield-maximizing, or a compromise.
+
+2. Qualifications and Limitations of the Analysis
+
+I would be transparent about the limitations of the current analysis:
+	•	The model is based on historical volume and type classifications, which may not fully reflect real-world harvesting variability (e.g., measurement errors, environmental shifts).
+	•	The analysis assumes static growth patterns and fixed classifications (e.g., TYPE and CLASS), while in reality, these may evolve over time.
+	•	Socioeconomic or regulatory factors (like legal size limits or economic cost of overharvest) are not directly considered in the model.
+
+These caveats are important for responsible interpretation and cautious policy formation.
+
+3. Recommendations for Cutoff Implementation
+
+If a decision must be made based on this analysis, I would recommend “Max Difference” as the initial implementation cutoff. This rule:
+	•	Harvests a high proportion of adults (~74%)
+	•	Keeps infant harvest moderate (~26%)
+	•	Aligns well with both conservation and operational goals
+
+I would suggest using this rule with periodic monitoring, and possibly integrating A1-infant protection if population studies indicate vulnerability in that group.
+
+4. Suggestions for Future Abalone Studies
+
+To improve future analyses and decision-making, I would suggest the following:
+	•	Incorporate longitudinal data, including growth and reproduction rates, to model long-term sustainability.
+	•	Collect and analyze environmental and habitat variables that may affect abalone size and classification.
+	•	Include economic variables, such as market value by size/type, to integrate cost-benefit considerations into harvest planning.
+	•	Consider individual tagging or tracking (if feasible) to study transitions from infant to adult classifications and refine model accuracy.
+	•	Develop adaptive management simulations to evaluate dynamic strategies that can adjust cutoffs based on observed outcomes.
+
+Summary
+
+My presentation would focus on informed tradeoff choices, acknowledge uncertainties, and provide practical implementation suggestions. I would also emphasize the need for ongoing data collection and adaptive management to refine harvesting strategies over time.
+)***
