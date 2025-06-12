@@ -24,7 +24,7 @@ Performed exploratory data analysis using histograms, Q-Q plots, and boxplots (g
 
 Assessed homogeneity of variances using bartlett.test().
 
-## Analysis of Variance (ANOVA):
+# Analysis of Variance (ANOVA):
 
 Fitted ANOVA models using aov() to analyze the effects of CLASS (age) and SEX on the log-transformed ratio (L_RATIO).
 
